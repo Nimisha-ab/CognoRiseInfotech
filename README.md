@@ -1,6 +1,6 @@
 # CognoRiseInfotech
 This repo is about my python development internship works in CognoRise Infotech
-Theree are 3 programs in this repo
+There are 3 programs in this repo
   Simple calculator with basic arithmetic operations.
 ● Prompt the user to input two numbers and an operation choice.
 ● Perform the calculation and display the result
