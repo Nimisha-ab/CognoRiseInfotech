@@ -1,0 +1,44 @@
+#include <iostream>
+#include <vector>
+#include <limits>
+
+class Prescription {
+public:
+    int id;
+    double dosage;
+
+    // Constructor
+    Prescription(int id, double dosage) : id(id), dosage(dosage) {}
+};
+
+int main() {
+    // Create a vector of Prescription objects
+    std::vector<Prescription> prescriptions = {
+        Prescription(1, 10.5),
+        Prescription(2, 20.0),
+        Prescription(3, 15.5),
+        Prescription(4, 5.0)
+    };
+
+    double sum = 0.0;
+    double minDosage = std::numeric_limits<double>::max();
+    double maxDosage = std::numeric_limits<double>::lowest();
+
+    // Calculate sum, min, and max dosages
+    for (const auto& prescription : prescriptions) {
+        sum += prescription.dosage;
+        if (prescription.dosage < minDosage) {
+            minDosage = prescription.dosage;
+        }
+        if (prescription.dosage > maxDosage) {
+            maxDosage = prescription.dosage;
+        }
+    }
+
+    // Output results
+    std::cout << "Total Dosage: " << sum << std::endl;
+    std::cout << "Minimum Dosage: " << minDosage << std::endl;
+    std::cout << "Maximum Dosage: " << maxDosage << std::endl;
+
+    return 0;
+}
