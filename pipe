@@ -1,0 +1,125 @@
+#include <iostream>
+#include <vector>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+
+using namespace std;
+
+class Prescription {
+private:
+    int p_id;
+    double dosage;
+
+public:
+    Prescription(int p_id, double dosage) : p_id(p_id), dosage(dosage) {}
+    
+    double getDosage() {
+        return dosage;
+    }
+};
+
+void findsum(vector<Prescription> &prescriptions, int write_fd) {
+    double sum = 0;
+    for (auto &e : prescriptions) {
+        sum += e.getDosage();
+    }
+    write(write_fd, &sum, sizeof(sum));
+    close(write_fd);
+}
+
+void findminfirsthalf(vector<Prescription> &prescriptions, int write_fd) {
+    double min = prescriptions[0].getDosage();
+    int half = prescriptions.size() / 2;
+    for (int i = 1; i < half; i++) {
+        if (prescriptions[i].getDosage() < min) {
+            min = prescriptions[i].getDosage();
+        }
+    }
+    write(write_fd, &min, sizeof(min));
+    close(write_fd);
+}
+
+void findmaxsecondhalf(vector<Prescription> &prescriptions, int write_fd) {
+    double max = prescriptions[0].getDosage();
+    int half = prescriptions.size();
+    for (int i = half / 2; i < half; i++) {
+        if (prescriptions[i].getDosage() > max) {
+            max = prescriptions[i].getDosage();
+        }
+    }
+    write(write_fd, &max, sizeof(max));
+    close(write_fd);
+}
+
+int main() {
+    vector<Prescription> prescriptions = {
+        Prescription(1, 10.5),
+        Prescription(2, 20.0),
+        Prescription(3, 15.5),
+        Prescription(4, 5.0),
+        Prescription(5, 6.0)
+    };
+
+    // Pipes for communication
+    int pipe_sum[2];
+    int pipe_min[2];
+    int pipe_max[2];
+
+    // Create pipes
+    pipe(pipe_sum);
+    pipe(pipe_min);
+    pipe(pipe_max);
+
+    // Fork process for sum
+    pid_t pid_sum = fork();
+    if (pid_sum == 0) {
+        // Child process for sum
+        close(pipe_sum[0]); // Close read end
+        findsum(prescriptions, pipe_sum[1]);
+        exit(0);
+    }
+
+    // Fork process for min
+    pid_t pid_min = fork();
+    if (pid_min == 0) {
+        // Child process for min
+        close(pipe_min[0]); // Close read end
+        findminfirsthalf(prescriptions, pipe_min[1]);
+        exit(0);
+    }
+
+    // Fork process for max
+    pid_t pid_max = fork();
+    if (pid_max == 0) {
+        // Child process for max
+        close(pipe_max[0]); // Close read end
+        findmaxsecondhalf(prescriptions, pipe_max[1]);
+        exit(0);
+    }
+
+    // Parent process waits for children to finish
+    waitpid(pid_sum, nullptr, 0);
+    waitpid(pid_min, nullptr, 0);
+    waitpid(pid_max, nullptr, 0);
+
+    // Read results from pipes
+    double dosage_sum, min_dosage, max_dosage;
+    read(pipe_sum[0], &dosage_sum, sizeof(dosage_sum));
+    read(pipe_min[0], &min_dosage, sizeof(min_dosage));
+    read(pipe_max[0], &max_dosage, sizeof(max_dosage));
+
+    // Close pipe read ends
+    close(pipe_sum[0]);
+    close(pipe_min[0]);
+    close(pipe_max[0]);
+
+    // Output the results
+    cout << "Total Dosage: " << dosage_sum << endl;
+    cout << "Minimum Dosage: " << min_dosage << endl;
+    cout << "Maximum Dosage: " << max_dosage << endl;
+
+    return 0;
+}
+
