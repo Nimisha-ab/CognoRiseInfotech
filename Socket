@@ -1,0 +1,109 @@
+include <iostream>
+#include <vector>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstring>
+#include <arpa/inet.h>
+
+using namespace std;
+
+class Prescription {
+private:
+    int p_id;
+    double dosage;
+
+public:
+    Prescription(int p_id, double dosage) : p_id(p_id), dosage(dosage) {}
+
+    double getDosage() const {
+        return dosage;
+    }
+};
+
+void handleClient(int client_socket) {
+    // Receive the size of the vector
+    int size;
+    recv(client_socket, &size, sizeof(size), 0);
+
+    // Receive the prescriptions
+    vector<Prescription> prescriptions;
+    for (int i = 0; i < size; i++) {
+        double dosage;
+        recv(client_socket, &dosage, sizeof(dosage), 0);
+        prescriptions.emplace_back(i + 1, dosage);
+    }
+
+    // Compute sum
+    double sum = 0;
+    for (const auto &e : prescriptions) {
+        sum += e.getDosage();
+    }
+
+    // Compute min in first half
+    double min = prescriptions[0].getDosage();
+    int half = size / 2;
+    for (int i = 1; i < half; i++) {
+        if (prescriptions[i].getDosage() < min) {
+            min = prescriptions[i].getDosage();
+        }
+    }
+
+    // Compute max in second half
+    double max = prescriptions[half].getDosage();
+    for (int i = half; i < size; i++) {
+        if (prescriptions[i].getDosage() > max) {
+            max = prescriptions[i].getDosage();
+        }
+    }
+
+    // Send results back to the client
+    send(client_socket, &sum, sizeof(sum), 0);
+    send(client_socket, &min, sizeof(min), 0);
+    send(client_socket, &max, sizeof(max), 0);
+
+    close(client_socket);
+}
+
+int main() {
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        cerr << "Failed to create socket." << endl;
+        return 1;
+    }
+
+    sockaddr_in server_addr{};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(8080);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        cerr << "Failed to bind socket." << endl;
+        return 1;
+    }
+
+    if (listen(server_socket, 5) == -1) {
+        cerr << "Failed to listen on socket." << endl;
+        return 1;
+    }
+
+    cout << "Server is running and waiting for connections..." << endl;
+
+    while (true) {
+        sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+        if (client_socket == -1) {
+            cerr << "Failed to accept client." << endl;
+            continue;
+        }
+
+        cout << "Client connected: " << inet_ntoa(client_addr.sin_addr) << endl;
+
+        handleClient(client_socket);
+    }
+
+    close(server_socket);
+    return 0;
+}
